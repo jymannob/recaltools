@@ -1,0 +1,28 @@
+{
+  "games": {
+    "Homebrew/Kubo 3.nes": {
+      "path": "Homebrew/Kubo 3.nes",
+      "favorite": true,
+      "playcount": "11",
+      "lastplayed": "20220529T183748"
+    },
+    "Homebrew/Micro Mages.nes": {
+      "path": "Homebrew/Micro Mages.nes",
+      "favorite": true,
+      "playcount": "3",
+      "lastplayed": "20201119T171810"
+    },
+    "Homebrew/Twin-Dragons-20170131-0.074.nes": {
+      "path": "Homebrew/Twin-Dragons-20170131-0.074.nes",
+      "favorite": true,
+      "playcount": "2",
+      "lastplayed": "20201119T181811"
+    },
+    "Homebrew/bobl-1.1.nes": {
+      "path": "Homebrew/bobl-1.1.nes",
+      "favorite": true,
+      "playcount": "5",
+      "lastplayed": "19800101T010223"
+    }
+  }
+}

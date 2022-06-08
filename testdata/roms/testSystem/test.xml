@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<gameList>
+    <game source="Recalbox" timestamp="0">
+        <path>Wei Lai Xiao Zi (Asia) (Unl).zip</path>
+        <name>Wei Lai Xiao Zi (Asia) (Unl)</name>
+    </game>
+    <game source="Recalbox" timestamp="0">
+        <path>Werewolf - The Last Warrior (Europe).zip</path>
+        <name>Werewolf - The Last Warrior (Europe)</name>
+    </game>
+    <game source="Recalbox" timestamp="0">
+        <path>Werewolf - The Last Warrior (USA).zip</path>
+        <name>Werewolf - The Last Warrior (USA)</name>
+    </game>
+</gameList>
