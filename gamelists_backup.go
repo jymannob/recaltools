@@ -19,7 +19,7 @@ type FavBackup struct {
 	Gamelists  []string
 	FormatJson bool
 	Verbose    bool
-	RestoreBkp bool
+	RestoreBkp bool // unused in reclatools version
 	wg         sync.WaitGroup
 }
 

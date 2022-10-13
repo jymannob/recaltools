@@ -69,7 +69,7 @@ func TestNewNode(t *testing.T) {
 }
 
 func TestReplaceChildNode(t *testing.T) {
-	// test 1
+	// 1st test : Add node
 	t1New := &xmlquery.Node{
 		Type: xmlquery.ElementNode,
 		Data: "test",
@@ -86,8 +86,9 @@ func TestReplaceChildNode(t *testing.T) {
 	}
 	xmlquery.AddChild(t1Want, &xmlquery.Node{Type: xmlquery.TextNode, Data: "text1"})
 	xmlquery.AddChild(t1Want, t1New)
+	// -----
 
-	// test 2
+	// 2nd test : Add and replace node
 	t2Data := &xmlquery.Node{
 		Type: xmlquery.ElementNode,
 		Data: "test2",
@@ -100,6 +101,7 @@ func TestReplaceChildNode(t *testing.T) {
 		Data: "test2",
 	}
 	xmlquery.AddChild(t2Want, t2Child)
+	// -----
 
 	type args struct {
 		from    *xmlquery.Node
