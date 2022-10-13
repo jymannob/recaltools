@@ -3,7 +3,8 @@
 Set of tools for recalbox
 * `backup` save gamelists user metadatas (favorite, playcount, ...)
 * `restore` apply metadatas saved by `backup` command to gamelists
-* (**todo**) `clean` delete all scraping data and rename all `gamelist.xml`
+* `clean` delete all scraping data and rename all `gamelist.xml`
+* (**todo**) remove only media data referenced by `gamelist.xml`
 
 ## developement Usage
 
