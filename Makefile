@@ -16,7 +16,7 @@ RASPBERRY_FLAGS = CGO_ENABLED=0 GOARCH=arm GOOS=linux
 .PHONY: tool test clean-build build
 
 dep: go.sum
-	@go get -d
+	@go mod download
 
 go.sum: 
 	go mod tidy

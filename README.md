@@ -39,7 +39,6 @@ PROJECT_VERSION=<Version> make build
 
 ### Problèmes repérés (à traiter)
 * `.goreleaser.yaml` : `buildVersion` codé en dur à `development` (utiliser `{{.Version}}`).
-* Monter la version de Go (1.17) et les dépendances.
 ## Roadmap
 
 Objectif : une GUI utilisable dans 3 contextes (sur un PC avec `share` monté en réseau, sur la Recalbox via un navigateur, en TUI via SSH), sans multiplier les interfaces.

@@ -142,10 +142,8 @@ func TestWriteXml(t *testing.T) {
 	t2XmlFile := generateTempFile("../testdata", t)
 	defer os.Remove(t2XmlFile.Name())
 
-	t2Data, err := xmlquery.Parse(strings.NewReader(""))
-	if err != nil {
-		t.Fatal(err)
-	}
+	// xmlquery >= 1.4 refuses to parse an empty document: build it directly
+	t2Data := &xmlquery.Node{Type: xmlquery.DocumentNode}
 
 	type args struct {
 		filePath string
