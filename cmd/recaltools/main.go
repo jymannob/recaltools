@@ -34,10 +34,18 @@ type args struct {
 	RestoreCmd *RestoreCmd `arg:"subcommand:restore"`
 	CleanCmd   *CleanCmd   `arg:"subcommand:clean"`
 	Verbose    bool        `arg:"--verbose, -v" default:"false" help:"Print debug logs"`
-	Version    bool        `args:"--version" default:"false" help:"Print program Version"`
+	Version    bool        `arg:"-V, --version" default:"false" help:"Print program Version"`
 }
 
 func main() {
+
+	// t, _ := os.Create("trace.out")
+	// trace.Start(t)
+	// defer trace.Stop()
+
+	// p, _ := os.Create("cpu.out")
+	// pprof.StartCPUProfile(p)
+	// defer pprof.StopCPUProfile()
 
 	var args args
 	arg.MustParse(&args)
