@@ -2,10 +2,12 @@ package xml
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sync"
 
 	"github.com/antchfx/xmlquery"
+	"github.com/jymannob/recaltools/utils"
 )
 
 var mu sync.RWMutex
@@ -29,15 +31,20 @@ func OpenXml(filePath string) (*xmlquery.Node, error) {
 	return doc, nil
 }
 
-// WriteXml opens a file and writes the XML data to it
+// WriteXml writes the XML data atomically to the file (see
+// utils.WriteFileAtomic) and returns the number of bytes written.
 func WriteXml(filePath string, data *xmlquery.Node) (int, error) {
-	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0664)
+	var n int
+	err := utils.WriteFileAtomic(filePath, func(w io.Writer) error {
+		var err error
+		n, err = io.WriteString(w, data.OutputXML(true))
+		return err
+	})
 	if err != nil {
-		return 0, fmt.Errorf("impossible d'écrire dans le fichier : %s | %v", filePath, err)
+		return 0, fmt.Errorf("impossible d'écrire dans le fichier : %s | %w", filePath, err)
 	}
-	defer f.Close()
 
-	return f.WriteString(data.OutputXML(true))
+	return n, nil
 }
 
 // It creates a new XML node with the given name and text

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/antchfx/xmlquery"
+	"github.com/jymannob/recaltools/utils"
 	"github.com/jymannob/recaltools/xml"
 )
 
@@ -191,5 +192,56 @@ func assertProcessedOnce(t *testing.T, logs string, gamelists []string, format s
 		if n := strings.Count(logs, fmt.Sprintf(format, g)); n != 1 {
 			t.Errorf("%s processed %d times, want 1", g, n)
 		}
+	}
+}
+
+// A `game` without `path` (or with an empty one) must be skipped without
+// panicking, the other games of the system being backed up.
+func TestBackupSystem_GameWithoutPath(t *testing.T) {
+	dir := t.TempDir()
+	gamelist := filepath.Join(dir, "gamelist.xml")
+	writeFile(t, gamelist, `<?xml version="1.0"?>
+<gameList>
+	<game><name>No path</name><favorite>true</favorite></game>
+	<game><path>  </path><name>Empty path</name><playcount>3</playcount></game>
+	<game><path>ok.zip</path><name>Ok</name><playcount>2</playcount></game>
+</gameList>`)
+
+	logs := captureLog(t)
+	fb := &FavBackup{Verbose: true}
+	fb.wg.Add(1)
+	fb.backupSystem(gamelist)
+
+	var backup SystemBackup
+	if err := utils.ReadJsonFile(filepath.Join(dir, fileBackupName), &backup); err != nil {
+		t.Fatal(err)
+	}
+	if len(backup.Games) != 1 || backup.Games["ok.zip"] == nil {
+		t.Errorf("backup = %+v, want only ok.zip", backup.Games)
+	}
+	if !strings.Contains(logs.String(), "without path") {
+		t.Errorf("skipped games should be logged in verbose mode, logs:\n%s", logs.String())
+	}
+}
+
+// In verbose mode, a game without `name` must be logged with its path.
+func TestBackupSystem_GameWithoutName(t *testing.T) {
+	dir := t.TempDir()
+	gamelist := filepath.Join(dir, "gamelist.xml")
+	writeFile(t, gamelist, `<?xml version="1.0"?>
+<gameList>
+	<game><path>noname.zip</path><favorite>true</favorite></game>
+</gameList>`)
+
+	logs := captureLog(t)
+	fb := &FavBackup{Verbose: true}
+	fb.wg.Add(1)
+	fb.backupSystem(gamelist)
+
+	if !strings.Contains(logs.String(), "Backup game : noname.zip") {
+		t.Errorf("game without name should be logged with its path, logs:\n%s", logs.String())
+	}
+	if !exists(filepath.Join(dir, fileBackupName)) {
+		t.Error("backup file not written")
 	}
 }

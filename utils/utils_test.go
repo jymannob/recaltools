@@ -240,3 +240,105 @@ func Test_bToMb(t *testing.T) {
 		})
 	}
 }
+
+// assertOnlyFiles fails if dir contains anything else than the expected files.
+func assertOnlyFiles(t *testing.T, dir string, want ...string) {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := map[string]bool{}
+	for _, w := range want {
+		expected[w] = true
+	}
+	for _, e := range entries {
+		if !expected[e.Name()] {
+			t.Errorf("unexpected file left in %s: %s", dir, e.Name())
+		}
+	}
+}
+
+func TestWriteJsonFile_Atomic(t *testing.T) {
+	data := map[string]string{"path": "game.zip"}
+
+	t.Run("new file", func(t *testing.T) {
+		dir := t.TempDir()
+		target := filepath.Join(dir, "backup.json")
+		if err := WriteJsonFile(target, data, false); err != nil {
+			t.Fatal(err)
+		}
+		got, _ := os.ReadFile(target)
+		if string(got) != "{\"path\":\"game.zip\"}\n" {
+			t.Errorf("content = %q", got)
+		}
+		info, _ := os.Stat(target)
+		if info.Mode().Perm() != 0664 {
+			t.Errorf("perm = %v, want 0664", info.Mode().Perm())
+		}
+		assertOnlyFiles(t, dir, "backup.json")
+	})
+
+	t.Run("replace keeps permissions", func(t *testing.T) {
+		dir := t.TempDir()
+		target := filepath.Join(dir, "backup.json")
+		if err := os.WriteFile(target, []byte("old content, longer than the new one"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(target, 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := WriteJsonFile(target, data, false); err != nil {
+			t.Fatal(err)
+		}
+		got, _ := os.ReadFile(target)
+		if string(got) != "{\"path\":\"game.zip\"}\n" {
+			t.Errorf("content = %q", got)
+		}
+		info, _ := os.Stat(target)
+		if info.Mode().Perm() != 0600 {
+			t.Errorf("perm = %v, want 0600", info.Mode().Perm())
+		}
+		assertOnlyFiles(t, dir, "backup.json")
+	})
+
+	t.Run("encode error keeps original", func(t *testing.T) {
+		dir := t.TempDir()
+		target := filepath.Join(dir, "backup.json")
+		if err := os.WriteFile(target, []byte("original"), 0664); err != nil {
+			t.Fatal(err)
+		}
+		if err := WriteJsonFile(target, make(chan int), false); err == nil {
+			t.Fatal("expected an error")
+		}
+		got, _ := os.ReadFile(target)
+		if string(got) != "original" {
+			t.Errorf("original file modified: %q", got)
+		}
+		assertOnlyFiles(t, dir, "backup.json")
+	})
+
+	t.Run("read-only directory", func(t *testing.T) {
+		if os.Geteuid() == 0 {
+			t.Skip("root ignores directory permissions")
+		}
+		dir := t.TempDir()
+		target := filepath.Join(dir, "backup.json")
+		if err := os.WriteFile(target, []byte("original"), 0664); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(dir, 0555); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.Chmod(dir, 0755) })
+
+		if err := WriteJsonFile(target, data, false); err == nil {
+			t.Fatal("expected an error")
+		}
+		got, _ := os.ReadFile(target)
+		if string(got) != "original" {
+			t.Errorf("original file modified: %q", got)
+		}
+		assertOnlyFiles(t, dir, "backup.json")
+	})
+}

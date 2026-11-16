@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -187,4 +188,70 @@ func generateTempFile(dir string, t *testing.T) (f *os.File) {
 	}
 
 	return tempfile
+}
+
+func TestWriteXml_Atomic(t *testing.T) {
+	const content = `<?xml version="1.0"?><gameList><game><path>a.zip</path></game></gameList>`
+	doc, err := xmlquery.Parse(strings.NewReader(content))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	onlyFile := func(t *testing.T, dir, name string) {
+		t.Helper()
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range entries {
+			if e.Name() != name {
+				t.Errorf("unexpected file left in %s: %s", dir, e.Name())
+			}
+		}
+	}
+
+	t.Run("replace keeps permissions", func(t *testing.T) {
+		dir := t.TempDir()
+		target := filepath.Join(dir, "gamelist.xml")
+		if err := os.WriteFile(target, []byte(content+"<!-- old content, longer -->"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		n, err := WriteXml(target, doc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, _ := os.ReadFile(target)
+		if string(got) != doc.OutputXML(true) || n != len(got) {
+			t.Errorf("content = %q (n=%d)", got, n)
+		}
+		info, _ := os.Stat(target)
+		if info.Mode().Perm() != 0600 {
+			t.Errorf("perm = %v, want 0600", info.Mode().Perm())
+		}
+		onlyFile(t, dir, "gamelist.xml")
+	})
+
+	t.Run("read-only directory", func(t *testing.T) {
+		if os.Geteuid() == 0 {
+			t.Skip("root ignores directory permissions")
+		}
+		dir := t.TempDir()
+		target := filepath.Join(dir, "gamelist.xml")
+		if err := os.WriteFile(target, []byte("original"), 0664); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(dir, 0555); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.Chmod(dir, 0755) })
+
+		if _, err := WriteXml(target, doc); err == nil {
+			t.Fatal("expected an error")
+		}
+		got, _ := os.ReadFile(target)
+		if string(got) != "original" {
+			t.Errorf("original file modified: %q", got)
+		}
+		onlyFile(t, dir, "gamelist.xml")
+	})
 }

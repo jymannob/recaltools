@@ -2,11 +2,13 @@ package recaltools
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/antchfx/xmlquery"
@@ -36,11 +38,22 @@ type Game struct {
 
 var fileBackupName string = "gamelist-backup.json"
 
-func (s *SystemBackup) AddGame(node *xmlquery.Node) {
+// errNoPath is returned by AddGame for a `game` without `path` (or with an
+// empty one): such a game cannot be matched on restore.
+var errNoPath = errors.New("game without path")
 
-	//create Game and add path from Xml (always present)
+// AddGame adds the `game` node to the backup. Games without `path` are
+// ignored and errNoPath is returned.
+func (s *SystemBackup) AddGame(node *xmlquery.Node) error {
+
+	path := node.SelectElement("path")
+	if path == nil || strings.TrimSpace(path.InnerText()) == "" {
+		return errNoPath
+	}
+
+	//create Game and add path from Xml
 	g := Game{
-		RomPath: node.SelectElement("path").InnerText(),
+		RomPath: path.InnerText(),
 	}
 
 	favorite := node.SelectElement("favorite")
@@ -62,6 +75,7 @@ func (s *SystemBackup) AddGame(node *xmlquery.Node) {
 	}
 
 	s.Games[g.RomPath] = &g
+	return nil
 }
 
 func (fb *FavBackup) PopulateGamelists(path string, di fs.DirEntry, err error) error {
@@ -124,9 +138,18 @@ func (fb *FavBackup) backupSystem(gamelist string) {
 
 	for _, node := range nodes {
 
-		systemBkp.AddGame(node)
+		if err := systemBkp.AddGame(node); err != nil {
+			if fb.Verbose {
+				log.Printf("%s: %v, skipped : %s\n", gamelist, err, node.OutputXML(true))
+			}
+			continue
+		}
 		if fb.Verbose {
-			log.Printf("Backup game : %s\n", node.SelectElement("name").InnerText())
+			label := node.SelectElement("path").InnerText()
+			if name := node.SelectElement("name"); name != nil {
+				label = name.InnerText()
+			}
+			log.Printf("Backup game : %s\n", label)
 		}
 	}
 
