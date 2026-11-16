@@ -46,3 +46,29 @@ PROJECT_VERSION=<Version> make build
 * `.goreleaser.yaml` : `buildVersion` codé en dur à `development` (utiliser `{{.Version}}`).
 * `cmd/gamelist-backup` (ancien binaire `gamelistBkp`) toujours buildé par le Makefile : à supprimer ?
 * Monter la version de Go (1.17) et les dépendances.
+## Roadmap
+
+Objectif : une GUI utilisable dans 3 contextes (sur un PC avec `share` monté en réseau, sur la Recalbox via un navigateur, en TUI via SSH), sans multiplier les interfaces.
+
+```
+                ┌────────────────────────────────┐
+                │ core (Go, sans I/O d'affichage)│  backup / restore / clean
+                │ résultats structurés, events   │  dry-run, progression
+                └──────┬──────────────┬──────────┘
+                       │              │
+             ┌─────────┴────┐    ┌────┴───────┐
+             │ API HTTP/JSON│    │ CLI + TUI  │  (appels directs au core)
+             └──┬────────┬──┘    └────────────┘
+                │        │
+   Web UI (go:embed)   Desktop (Wails : même front web dans une fenêtre native)
+```
+
+1. **Corriger les bugs connus** (section « Problèmes repérés »).
+2. **Extraire le cœur en bibliothèque** (`internal/core`) : résultats structurés et erreurs remontées au lieu de `log.Println`, événements de progression, mode dry-run pour `clean` et `restore`. Le CLI devient un client du core.
+3. **API HTTP/JSON + front web** embarqué via `go:embed`, servi par le binaire (Recalbox ou PC).
+4. **TUI** (bubbletea) branchée directement sur le core, puis éventuellement packaging desktop avec **Wails**.
+
+Points d'attention :
+* Sécurité de l'API web sur la Recalbox (écoute limitée, jeton d'accès) : elle peut supprimer des fichiers.
+* Accès concurrents avec EmulationStation qui réécrit les gamelists.
+* Un seul binaire statique sans dépendance, compatible Raspberry Pi.
