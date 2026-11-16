@@ -1,7 +1,6 @@
 package recaltools
 
 import (
-	"sync"
 	"testing"
 )
 
@@ -14,7 +13,6 @@ func TestFavBackup_Backup(t *testing.T) {
 		FormatJson bool
 		Verbose    bool
 		RestoreBkp bool
-		wg         sync.WaitGroup
 	}
 	tests := []struct {
 		name    string
@@ -40,7 +38,6 @@ func TestFavBackup_Backup(t *testing.T) {
 				FormatJson: tt.fields.FormatJson,
 				Verbose:    tt.fields.Verbose,
 				RestoreBkp: tt.fields.RestoreBkp,
-				wg:         tt.fields.wg,
 			}
 			if err := fb.Backup(); (err != nil) != tt.wantErr {
 				t.Errorf("FavBackup.Backup() error = %v, wantErr %v", err, tt.wantErr)
@@ -57,7 +54,6 @@ func TestFavBackup_Restore(t *testing.T) {
 		FormatJson bool
 		Verbose    bool
 		RestoreBkp bool
-		wg         sync.WaitGroup
 	}
 	tests := []struct {
 		name    string
@@ -83,7 +79,6 @@ func TestFavBackup_Restore(t *testing.T) {
 				FormatJson: tt.fields.FormatJson,
 				Verbose:    tt.fields.Verbose,
 				RestoreBkp: tt.fields.RestoreBkp,
-				wg:         tt.fields.wg,
 			}
 			if err := fb.Restore(); (err != nil) != tt.wantErr {
 				t.Errorf("FavBackup.Restore() error = %v, wantErr %v", err, tt.wantErr)
@@ -99,7 +94,6 @@ func TestFavBackup_restoreSystem(t *testing.T) {
 		FormatJson bool
 		Verbose    bool
 		RestoreBkp bool
-		wg         sync.WaitGroup
 	}
 	type args struct {
 		gamelist string
@@ -138,7 +132,6 @@ func TestFavBackup_restoreSystem(t *testing.T) {
 				FormatJson: tt.fields.FormatJson,
 				Verbose:    tt.fields.Verbose,
 				RestoreBkp: tt.fields.RestoreBkp,
-				wg:         tt.fields.wg,
 			}
 			fb.wg.Add(1)
 			fb.restoreSystem(tt.args.gamelist)
@@ -153,7 +146,6 @@ func TestFavBackup_backupSystem(t *testing.T) {
 		FormatJson bool
 		Verbose    bool
 		RestoreBkp bool
-		wg         sync.WaitGroup
 	}
 	type args struct {
 		gamelist string
@@ -192,7 +184,6 @@ func TestFavBackup_backupSystem(t *testing.T) {
 				FormatJson: tt.fields.FormatJson,
 				Verbose:    tt.fields.Verbose,
 				RestoreBkp: tt.fields.RestoreBkp,
-				wg:         tt.fields.wg,
 			}
 			fb.wg.Add(1)
 			fb.backupSystem(tt.args.gamelist)

@@ -19,21 +19,20 @@ type CleanScrapping struct {
 
 // Clean all scrapped data
 func (cs *CleanScrapping) Clean() error {
-	for _, romsdir := range cs.RomsDir {
-		err := filepath.WalkDir(romsdir, cs.PopulateGamelists)
-		if err != nil {
-			return err
-		}
+	gamelists, err := findGamelists(cs.RomsDir)
+	if err != nil {
+		return err
+	}
+	cs.Gamelists = gamelists
 
-		for _, gamelist := range cs.Gamelists {
+	for _, gamelist := range cs.Gamelists {
 
+		cs.wg.Add(1)
+		go cs.backupGamelist(gamelist)
+
+		if !cs.KeepMedias {
 			cs.wg.Add(1)
-			go cs.backupGamelist(gamelist)
-
-			if !cs.KeepMedias {
-				cs.wg.Add(1)
-				go cs.cleanMedias(gamelist)
-			}
+			go cs.cleanMedias(gamelist)
 		}
 	}
 

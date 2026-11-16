@@ -78,17 +78,16 @@ var gameXpath string = "//game[./favorite[matches(text(), \"(?i)^true$\")]|./las
 
 func (fb *FavBackup) Backup() error {
 
-	for _, romsdir := range fb.RomsDir {
-		err := filepath.WalkDir(romsdir, fb.PopulateGamelists)
-		if err != nil {
-			return err
-		}
+	gamelists, err := findGamelists(fb.RomsDir)
+	if err != nil {
+		return err
+	}
+	fb.Gamelists = gamelists
 
-		for _, gamelist := range fb.Gamelists {
+	for _, gamelist := range fb.Gamelists {
 
-			fb.wg.Add(1)
-			go fb.backupSystem(gamelist)
-		}
+		fb.wg.Add(1)
+		go fb.backupSystem(gamelist)
 	}
 
 	fb.wg.Wait()
@@ -110,55 +109,84 @@ func (fb *FavBackup) backupSystem(gamelist string) {
 		return
 	}
 
-	_, err = xmlquery.QueryAll(doc, gameXpath)
+	nodes, err := xmlquery.QueryAll(doc, gameXpath)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	if nodes, err := xmlquery.QueryAll(doc, gameXpath); err == nil {
+	if len(nodes) == 0 {
+		return
+	}
 
-		if len(nodes) > 0 {
+	systemBkp := SystemBackup{
+		Games: make(map[string]*Game),
+	}
 
-			systemBkp := SystemBackup{
-				Games: make(map[string]*Game),
-			}
+	for _, node := range nodes {
 
-			for _, node := range nodes {
-
-				systemBkp.AddGame(node)
-				if fb.Verbose {
-					log.Printf("Backup game : %s\n", node.SelectElement("name").InnerText())
-				}
-			}
-
-			if fb.Verbose {
-				j, _ := json.MarshalIndent(systemBkp, "", "  ")
-				log.Println(string(j))
-				log.Printf("Write Json file : %v", filepath.Join(systemPath, fileBackupName))
-			}
-
-			utils.WriteJsonFile(filepath.Join(systemPath, fileBackupName), systemBkp, fb.FormatJson)
-			if err != nil {
-				log.Println(err)
-			}
+		systemBkp.AddGame(node)
+		if fb.Verbose {
+			log.Printf("Backup game : %s\n", node.SelectElement("name").InnerText())
 		}
 	}
+
+	if fb.Verbose {
+		j, _ := json.MarshalIndent(systemBkp, "", "  ")
+		log.Println(string(j))
+		log.Printf("Write Json file : %v", filepath.Join(systemPath, fileBackupName))
+	}
+
+	err = utils.WriteJsonFile(filepath.Join(systemPath, fileBackupName), systemBkp, fb.FormatJson)
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+// findGamelists walks every roms directory and returns the `gamelist.xml`
+// files found, each one only once (even if roms directories overlap).
+func findGamelists(romsDirs []string) ([]string, error) {
+	var gamelists []string
+	seen := make(map[string]bool)
+
+	for _, romsdir := range romsDirs {
+		err := filepath.WalkDir(romsdir, func(path string, di fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if di.IsDir() || di.Name() != "gamelist.xml" {
+				return nil
+			}
+
+			key, absErr := filepath.Abs(path)
+			if absErr != nil {
+				key = filepath.Clean(path)
+			}
+			if !seen[key] {
+				seen[key] = true
+				gamelists = append(gamelists, path)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("cannot walk roms directory %s: %w", romsdir, err)
+		}
+	}
+
+	return gamelists, nil
 }
 
 func (fb *FavBackup) Restore() error {
 
-	for _, romsdir := range fb.RomsDir {
+	gamelists, err := findGamelists(fb.RomsDir)
+	if err != nil {
+		return err
+	}
+	fb.Gamelists = gamelists
 
-		err := filepath.WalkDir(romsdir, fb.PopulateGamelists)
-		if err != nil {
-			return err
-		}
+	for _, gamelist := range fb.Gamelists {
 
-		for _, gamelist := range fb.Gamelists {
-
-			fb.wg.Add(1)
-			go fb.restoreSystem(gamelist)
-		}
+		fb.wg.Add(1)
+		go fb.restoreSystem(gamelist)
 	}
 
 	fb.wg.Wait()
@@ -166,8 +194,25 @@ func (fb *FavBackup) Restore() error {
 	return nil
 }
 
-//get `game` nodes with child node (`path` contains specific test)
-var gameFindXpath string = "//game[./path[contains(text(), \"%s\")]]"
+// indexGames returns the `game` nodes of doc indexed by the exact text of
+// their `path` child. When several games share the same path, the first one
+// in document order is kept.
+//
+// Comparing in Go instead of building an XPath query avoids any escaping
+// issue with paths containing `"` or `'`.
+func indexGames(doc *xmlquery.Node) map[string]*xmlquery.Node {
+	games := make(map[string]*xmlquery.Node)
+	for _, game := range xmlquery.Find(doc, "//game") {
+		path := game.SelectElement("path")
+		if path == nil {
+			continue
+		}
+		if _, found := games[path.InnerText()]; !found {
+			games[path.InnerText()] = game
+		}
+	}
+	return games
+}
 
 func (fb *FavBackup) restoreSystem(gamelist string) {
 	defer fb.wg.Done()
@@ -191,6 +236,8 @@ func (fb *FavBackup) restoreSystem(gamelist string) {
 		log.Printf("%s Found backup\n", filepath.Join(systemPath, fileBackupName))
 	}
 
+	games := indexGames(doc)
+
 	for _, v := range backup.Games {
 
 		if fb.Verbose {
@@ -198,9 +245,12 @@ func (fb *FavBackup) restoreSystem(gamelist string) {
 		}
 
 		// get `game` Node
-		a, err := xmlquery.Query(doc, fmt.Sprintf(gameFindXpath, v.RomPath))
-		if err != nil {
-			return // no `game` node
+		a, found := games[v.RomPath]
+		if !found {
+			if fb.Verbose {
+				log.Printf("Game not found in %s, skipped : %s\n", gamelist, v.RomPath)
+			}
+			continue
 		}
 
 		// update childs Nodes
