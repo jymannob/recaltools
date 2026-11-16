@@ -39,7 +39,6 @@ PROJECT_VERSION=<Version> make build
 
 ### Problèmes repérés (à traiter)
 * `.goreleaser.yaml` : `buildVersion` codé en dur à `development` (utiliser `{{.Version}}`).
-* `cmd/gamelist-backup` (ancien binaire `gamelistBkp`) toujours buildé par le Makefile : à supprimer ?
 * Monter la version de Go (1.17) et les dépendances.
 ## Roadmap
 
