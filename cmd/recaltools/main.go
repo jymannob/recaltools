@@ -24,14 +24,28 @@ type RestoreCmd struct {
 	RomsDir []string `arg:"positional" help:"path/to/roms/dir default:/recalbox/share/roms"`
 }
 
+type CleanCmd struct {
+	RomsDir    []string `arg:"positional" help:"path/to/roms/dir default:/recalbox/share/roms"`
+	KeepMedias bool     `arg:"-k, --keep-media" help:"Do not delete media"`
+}
+
 type args struct {
 	BackupCmd  *BackupCmd  `arg:"subcommand:backup"`
 	RestoreCmd *RestoreCmd `arg:"subcommand:restore"`
+	CleanCmd   *CleanCmd   `arg:"subcommand:clean"`
 	Verbose    bool        `arg:"--verbose, -v" default:"false" help:"Print debug logs"`
-	Version    bool        `args:"--version" default:"false" help:"Print program Version"`
+	Version    bool        `arg:"-V, --version" default:"false" help:"Print program Version"`
 }
 
 func main() {
+
+	// t, _ := os.Create("trace.out")
+	// trace.Start(t)
+	// defer trace.Stop()
+
+	// p, _ := os.Create("cpu.out")
+	// pprof.StartCPUProfile(p)
+	// defer pprof.StopCPUProfile()
 
 	var args args
 	arg.MustParse(&args)
@@ -68,6 +82,21 @@ func main() {
 			Verbose:    args.Verbose,
 		}
 		err := favBkp.Restore()
+		if err != nil {
+			log.Println(err)
+		}
+	case args.CleanCmd != nil:
+
+		if len(args.CleanCmd.RomsDir) < 1 {
+			args.CleanCmd.RomsDir = append(args.CleanCmd.RomsDir, "/recalbox/share/roms")
+		}
+
+		favBkp := recaltools.CleanScrapping{
+			RomsDir:    args.CleanCmd.RomsDir,
+			KeepMedias: args.CleanCmd.KeepMedias,
+			Verbose:    args.Verbose,
+		}
+		err := favBkp.Clean()
 		if err != nil {
 			log.Println(err)
 		}
